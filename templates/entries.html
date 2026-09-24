@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head><title>My Logbook Entries</title></head>
+<body>
+    <h2>My Logbook Entries</h2>
+    <a href="{{ url_for('new_entry') }}">+ Add New Entry</a>
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        <ul>{% for message in messages %}<li>{{ message }}</li>{% endfor %}</ul>
+      {% endif %}
+    {% endwith %}
+    <table border="1" cellpadding="8">
+        <tr><th>Date</th><th>Description</th><th>Status</th></tr>
+        {% for entry in entries %}
+        <tr>
+            <td>{{ entry.entry_date }}</td>
+            <td>{{ entry.description }}</td>
+            <td>{{ entry.status }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+</body>
+</html>
