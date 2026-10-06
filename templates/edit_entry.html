@@ -1,0 +1,22 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Edit Entry</title>
+  </head>
+  <body>
+    <h2>Edit Logbook Entry</h2>
+    <form method="POST">
+      <label>Date:</label><br />
+      <input
+        type="date"
+        name="entry_date"
+        value="{{ entry.entry_date }}"
+        required
+      /><br />
+      <label>Description:</label><br />
+      <textarea name="description" required>{{ entry.description }}</textarea
+      ><br /><br />
+      <button type="submit">Save Changes</button>
+    </form>
+  </body>
+</html>

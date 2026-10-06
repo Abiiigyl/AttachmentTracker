@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head><title>All Logbook Entries</title></head>
+<body>
+    <h2>All Student Entries (Supervisor View)</h2>
+    <a href="{{ url_for('logout') }}">Logout</a>
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        <ul>{% for message in messages %}<li>{{ message }}</li>{% endfor %}</ul>
+      {% endif %}
+    {% endwith %}
+    <table border="1" cellpadding="8">
+        <tr><th>Student</th><th>Date</th><th>Description</th><th>Status</th><th>Actions</th></tr>
+        {% for entry in entries %}
+        <tr>
+            <td>{{ entry.student_name }}</td>
+            <td>{{ entry.entry_date }}</td>
+            <td>{{ entry.description }}</td>
+            <td>{{ entry.status }}</td>
+            <td>
+                {% if entry.status == 'pending' %}
+                <form method="POST" action="{{ url_for('approve_entry', entry_id=entry.id) }}" style="display:inline;">
+                    <button type="submit">Approve</button>
+                </form>
+                <form method="POST" action="{{ url_for('reject_entry', entry_id=entry.id) }}" style="display:inline;">
+                    <button type="submit">Reject</button>
+                </form>
+                {% else %}
+                    —
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+</body>
+</html>
