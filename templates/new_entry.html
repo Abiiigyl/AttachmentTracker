@@ -1,14 +1,24 @@
 <!DOCTYPE html>
 <html>
-<head><title>New Entry</title></head>
+<head>
+    <title>New Entry</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
 <body>
-    <h2>Add Logbook Entry</h2>
-    <form method="POST">
-        <label>Date:</label><br>
-        <input type="date" name="entry_date" required><br>
-        <label>Description:</label><br>
-        <textarea name="description" required></textarea><br><br>
-        <button type="submit">Save Entry</button>
-    </form>
+    <div>
+        <h2>Add Logbook Entry</h2>
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                <ul class="flash-messages">{% for message in messages %}<li>{{ message }}</li>{% endfor %}</ul>
+            {% endif %}
+        {% endwith %}
+        <form method="POST" onsubmit="document.getElementById('submitBtn').disabled = true; return true;">
+            <label>Date:</label><br>
+            <input type="date" name="entry_date" min="{{ today }}" value="{{ today }}" required><br>
+            <label>Description:</label><br>
+            <textarea name="description" required></textarea><br><br>
+            <button type="submit">Save Entry</button>
+        </form>
+    </div>
 </body>
 </html>

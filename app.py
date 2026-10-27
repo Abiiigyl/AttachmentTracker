@@ -2,6 +2,7 @@ from flask import Flask, render_template, request, redirect, url_for, flash, ses
 from werkzeug.security import generate_password_hash, check_password_hash
 import pymysql
 from fpdf import FPDF
+from datetime import date
 
 app = Flask(__name__)
 app.secret_key = '3d576da5f085fbe3803cb1cef756c7f8'  # needed for flash messages & sessions
@@ -112,9 +113,15 @@ def new_entry():
         flash('Please log in first.')
         return redirect(url_for('login'))
 
+    today = date.today().isoformat()
+
     if request.method == 'POST':
         entry_date = request.form['entry_date']
         description = request.form['description']
+
+        if entry_date < today:
+            flash ('Entries cannot be added for previous days.')
+            return render_template('new_entry.html', today=today)
 
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -127,7 +134,7 @@ def new_entry():
         flash('Entry added successfully!')
         return redirect(url_for('entries'))
 
-    return render_template('new_entry.html')
+    return render_template('new_entry.html', today=today)
 
 @app.route('/entries/<int:entry_id>/edit', methods=['GET', 'POST'])
 def edit_entry(entry_id):
@@ -147,16 +154,33 @@ def edit_entry(entry_id):
         flash("Entry not found or you don't have permission to edit it.")
         return redirect(url_for('entries'))
 
+    if entry['status'] == 'approved':
+        conn.close()
+        flash("Approved entries are locked and cannot be edited")
+        return redirect(url_for('entries'))
+
     if request.method == 'POST':
         entry_date = request.form['entry_date']
         description = request.form['description']
+
+        if entry_date != str(entry['entry_date']) and entry_date < date.today().isoformat():
+            conn.close()
+            flash('You cannot change the date to a previous day.')
+            return redirect(url_for('edit_entry', entry_id=entry_id))
+
         cursor.execute(
-            'UPDATE logbook_entries SET entry_date = %s, description = %s WHERE id = %s',
-            (entry_date, description, entry_id)
+            '''UPDATE logbook_entries
+               SET entry_date = %s, description = %s, status = %s, rejection_reason = NULL
+               WHERE id = %s AND student_id = %s''',
+            (entry_date, description, 'pending', entry_id, session['user_id'])
         )
         conn.commit()
         conn.close()
-        flash('Entry updated successfully!')
+
+        if entry['status'] == 'rejected':
+            flash('Entry updated and resubmitted for review.')
+        else:
+            flash('Entry updated successfully!')
         return redirect(url_for('entries'))
 
     conn.close()
@@ -170,11 +194,16 @@ def delete_entry(entry_id):
 
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute('DELETE FROM logbook_entries WHERE id = %s AND student_id = %s',
+    cursor.execute('DELETE FROM logbook_entries WHERE id = %s AND student_id = %s AND status = %s',
                     (entry_id, session['user_id']))
+    deleted = cursor.rowcount
     conn.commit()
     conn.close()
-    flash('Entry deleted.')
+
+    if deleted:
+        flash('Entry deleted successfully!')
+    else:
+        flash('Only pending entries can be deleted.')
     return redirect(url_for('entries'))
 
 @app.route('/entries/report', methods=['GET', 'POST'])
@@ -247,7 +276,19 @@ def supervisor_entries():
     ''')
     all_entries = cursor.fetchall()
     conn.close()
-    return render_template('supervisor_entries.html', entries=all_entries)
+
+    students = {}
+    for entry in all_entries:
+        group = students.setdefault(entry['student_id'], {
+            'name': entry['student_name'],
+            'entries': [],
+            'pending': 0
+        })
+        group['entries'].append(entry)
+        if entry['status'] == 'pending':
+            group['pending'] += 1
+
+    return render_template('supervisor_entries.html', students=list(students.values()))
 
 
 @app.route('/supervisor/entries/<int:entry_id>/approve', methods=['POST'])
@@ -277,9 +318,14 @@ def reject_entry(entry_id):
         flash('Access denied.')
         return redirect(url_for('dashboard'))
 
+    reason = request.form.get('rejection_reason', '').strip()
+    if not reason:
+        flash('Please provide a reason for rejecting this entry.')
+        return redirect(url_for('supervisor_entries'))
+    
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute('UPDATE logbook_entries SET status = %s WHERE id = %s', ('rejected', entry_id))
+    cursor.execute('UPDATE logbook_entries SET status = %s, rejection_reason = %s WHERE id = %s', ('rejected',  reason, entry_id))
     conn.commit()
     conn.close()
     flash('Entry rejected.')

@@ -1,36 +1,123 @@
 <!DOCTYPE html>
 <html>
-<head><title>All Logbook Entries</title></head>
+<head>
+    <title>All Logbook Entries</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
 <body>
+<div class="container">
     <h2>All Student Entries (Supervisor View)</h2>
-    <a href="{{ url_for('logout') }}">Logout</a>
+    <div class="nav-bar">
+        <a href="{{ url_for('logout') }}">Logout</a>
+    </div>
+
     {% with messages = get_flashed_messages() %}
       {% if messages %}
-        <ul>{% for message in messages %}<li>{{ message }}</li>{% endfor %}</ul>
+        <ul class="flash-messages">{% for message in messages %}<li>{{ message }}</li>{% endfor %}</ul>
       {% endif %}
     {% endwith %}
-    <table border="1" cellpadding="8">
-        <tr><th>Student</th><th>Date</th><th>Description</th><th>Status</th><th>Actions</th></tr>
-        {% for entry in entries %}
-        <tr>
-            <td>{{ entry.student_name }}</td>
-            <td>{{ entry.entry_date }}</td>
-            <td>{{ entry.description }}</td>
-            <td>{{ entry.status }}</td>
-            <td>
-                {% if entry.status == 'pending' %}
-                <form method="POST" action="{{ url_for('approve_entry', entry_id=entry.id) }}" style="display:inline;">
-                    <button type="submit">Approve</button>
-                </form>
-                <form method="POST" action="{{ url_for('reject_entry', entry_id=entry.id) }}" style="display:inline;">
-                    <button type="submit">Reject</button>
-                </form>
-                {% else %}
-                    —
-                {% endif %}
-            </td>
-        </tr>
-        {% endfor %}
-    </table>
+
+    {% if students %}
+    <div class="filter-bar">
+        <input type="text" id="student-search" placeholder="Search student by name...">
+        <select id="student-filter">
+            <option value="all">All students</option>
+            <option value="pending">With pending entries only</option>
+        </select>
+    </div>
+    <p id="no-results" style="display:none;">No students match your search.</p>
+    {% endif %}
+
+    {% for student in students %}
+    <details class="student-group" open data-name="{{ student.name|lower }}" data-pending="{{ student.pending }}">
+        <summary>
+            {{ student.name }}
+            <span class="entry-count">{{ student.entries|length }} entries</span>
+            {% if student.pending %}
+                <span class="pending-badge">{{ student.pending }} pending</span>
+            {% endif %}
+        </summary>
+
+        <table>
+            <tr><th>Date</th><th>Description</th><th>Status</th><th>Actions</th></tr>
+            {% for entry in student.entries %}
+            <tr>
+                <td>{{ entry.entry_date }}</td>
+                <td>{{ entry.description }}</td>
+                <td class="status-{{ entry.status }}">
+                    {{ entry.status }}
+                    {% if entry.status == 'rejected' and entry.rejection_reason %}
+                        <br><small>Reason: {{ entry.rejection_reason }}</small>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if entry.status == 'pending' %}
+                    <form method="POST" action="{{ url_for('approve_entry', entry_id=entry.id) }}" style="display:inline;">
+                        <button type="submit">Approve</button>
+                    </form>
+
+                    <button type="button" id="reject-btn-{{ entry.id }}" class="reject-open" data-id="{{ entry.id }}">Reject</button>
+
+                    <form method="POST" action="{{ url_for('reject_entry', entry_id=entry.id) }}" id="reject-form-{{ entry.id }}" style="display:none;">
+                        <input type="text" name="rejection_reason" placeholder="Reason for rejection" required>
+                        <button type="submit">Confirm Reject</button>
+                        <button type="button" class="reject-cancel" data-id="{{ entry.id }}">Cancel</button>
+                    </form>
+                    {% else %}
+                        —
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </table>
+    </details>
+    {% else %}
+    <p>No student entries yet.</p>
+    {% endfor %}
+</div>
+
+<script>
+function toggleReject(id, show) {
+    document.getElementById('reject-form-' + id).style.display = show ? 'block' : 'none';
+    document.getElementById('reject-btn-' + id).style.display = show ? 'none' : 'inline-block';
+    if (show) {
+        document.querySelector('#reject-form-' + id + ' input').focus();
+    }
+}
+
+document.querySelectorAll('.reject-open').forEach(function (btn) {
+    btn.addEventListener('click', function () { toggleReject(btn.dataset.id, true); });
+});
+
+document.querySelectorAll('.reject-cancel').forEach(function (btn) {
+    btn.addEventListener('click', function () { toggleReject(btn.dataset.id, false); });
+});
+
+const searchBox = document.getElementById('student-search');
+const filterSelect = document.getElementById('student-filter');
+const groups = document.querySelectorAll('.student-group');
+const noResults = document.getElementById('no-results');
+
+function applyFilters() {
+    const term = searchBox.value.trim().toLowerCase();
+    const onlyPending = filterSelect.value === 'pending';
+    let visible = 0;
+
+    groups.forEach(function (group) {
+        const matchesName = group.dataset.name.includes(term);
+        const matchesPending = !onlyPending || Number(group.dataset.pending) > 0;
+        const show = matchesName && matchesPending;
+        group.style.display = show ? '' : 'none';
+        if (show) visible++;
+    });
+
+    noResults.style.display = (visible === 0 && groups.length > 0) ? 'block' : 'none';
+}
+
+if (searchBox) {
+    searchBox.addEventListener('input', applyFilters);
+    filterSelect.addEventListener('change', applyFilters);
+}
+</script>
 </body>
 </html>

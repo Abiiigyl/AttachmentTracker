@@ -1,22 +1,32 @@
-<!doctype html>
+<!DOCTYPE html>
 <html>
-  <head>
+<head>
     <title>Edit Entry</title>
-  </head>
-  <body>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<div class="container">
     <h2>Edit Logbook Entry</h2>
+
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        <ul class="flash-messages">{% for message in messages %}<li>{{ message }}</li>{% endfor %}</ul>
+      {% endif %}
+    {% endwith %}
+
+    {% if entry.status == 'rejected' and entry.rejection_reason %}
+        <p class="status-rejected">Rejected: {{ entry.rejection_reason }}</p>
+        <p><small>Saving your changes will resubmit this entry for review.</small></p>
+    {% endif %}
+
     <form method="POST">
-      <label>Date:</label><br />
-      <input
-        type="date"
-        name="entry_date"
-        value="{{ entry.entry_date }}"
-        required
-      /><br />
-      <label>Description:</label><br />
-      <textarea name="description" required>{{ entry.description }}</textarea
-      ><br /><br />
-      <button type="submit">Save Changes</button>
+        <label>Date:</label>
+        <input type="date" name="entry_date" value="{{ entry.entry_date }}" required>
+        <label>Description:</label>
+        <textarea name="description" required>{{ entry.description }}</textarea>
+        <button type="submit">Save Changes</button>
+        <a href="{{ url_for('entries') }}">Cancel</a>
     </form>
-  </body>
+</div>
+</body>
 </html>

@@ -1,6 +1,9 @@
 <!DOCTYPE html>
 <html>
-<head><title>Generate Report</title></head>
+<head>
+    <title>Generate Report</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
 <body>
     <h2>Generate Logbook Report</h2>
     <a href="{{ url_for('entries') }}">Back to Entries</a>
